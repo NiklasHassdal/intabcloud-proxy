@@ -1,0 +1,24 @@
+{
+  "name": "intabcloud-proxy",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "lint": "eslint . --fix"
+  },
+  "devDependencies": {
+    "@stylistic/eslint-plugin-js": "^2.10.1",
+    "@types/node": "^22.9.0",
+    "eslint": "^9.14.0",
+    "nodemon": "^3.1.7"
+  },
+  "dependencies": {
+    "cookie": "^1.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "knex": "^3.1.0",
+    "pg": "^8.13.1",
+    "uuid": "^11.0.3"
+  }
+}

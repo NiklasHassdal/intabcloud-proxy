@@ -1,0 +1,49 @@
+services:
+  intabcloud_proxy:
+    container_name: intabcloud_proxy
+    build:
+      context: .
+      target: production
+    environment:
+      - NODE_ENV=production
+      - HOST=${HOST-0.0.0.0}
+      - PORT=${PORT-80}
+      - POSTGRES_HOST=${POSTGRES_HOST-intabcloud_logs_db}
+      - POSTGRES_USER=${POSTGRES_USER-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD-postgres}
+      - POSTGRES_DB=${POSTGRES_DB-intabcloud_log}
+      - API_HOST=${API_HOST-intabcloud_api:8080}
+      - UI_HOST=${UI_HOST-intabcloud_ui:8090}
+      - WISENSYS_HOST=${WISENSYS_HOST-intabcloud_wisensys:9000}
+      - NOVUS_HOST=${NOVUS_HOST-intabcloud_novus:9001}
+      - COMET_HOST=${COMET_HOST-intabcloud_comet:9002}
+      - GPRS_HOST=${GPRS_HOST-intabcloud_gprs:9003}
+    networks:
+      - intabcloud_network
+    ports:
+      - 80:80
+    depends_on:
+      - intabcloud_logs_db
+    restart: always
+
+  intabcloud_logs_db:
+    container_name: intabcloud_logs_db
+    image: postgres:16.3-alpine
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD-postgres}
+      - POSTGRES_DB=${POSTGRES_DB-intabcloud_log}
+    networks:
+      - intabcloud_network
+    ports:
+      - 5433:5432
+    volumes:
+      - intabcloud_logs_data:/var/lib/postgresql/data/
+    restart: always
+
+volumes:
+  intabcloud_logs_data:
+
+networks:
+  intabcloud_network:
+    name: intabcloud_network
