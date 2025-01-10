@@ -18,14 +18,14 @@ export default {
         responseLogLimit: parseInt(process.env.RESPONSE_LOG_LIMIT || "100000"),
     },
 
-    // Log retention in hours
+    // Log retention in seconds
     logRetention: {
-        api:      parseInt(process.env.API_LOG_RETENTION || process.env.LOG_RETENTION || "168"),
-        ui:       parseInt(process.env.UI_LOG_RETENTION || process.env.LOG_RETENTION || "168"),
-        wisensys: parseInt(process.env.WISENSYS_LOG_RETENTION || process.env.LOG_RETENTION || "168"),
-        novus:    parseInt(process.env.NOVUS_LOG_RETENTION || process.env.LOG_RETENTION || "168"),
-        comet:    parseInt(process.env.COMET_LOG_RETENTION || process.env.LOG_RETENTION || "168"),
-        gprs:     parseInt(process.env.GPRS_LOG_RETENTION || process.env.LOG_RETENTION || "168"),
+        api:      parseInt(process.env.API_LOG_RETENTION || process.env.LOG_RETENTION || "86400"),
+        ui:       parseInt(process.env.UI_LOG_RETENTION || process.env.LOG_RETENTION || "86400"),
+        wisensys: parseInt(process.env.WISENSYS_LOG_RETENTION || process.env.LOG_RETENTION || "86400"),
+        novus:    parseInt(process.env.NOVUS_LOG_RETENTION || process.env.LOG_RETENTION || "86400"),
+        comet:    parseInt(process.env.COMET_LOG_RETENTION || process.env.LOG_RETENTION || "86400"),
+        gprs:     parseInt(process.env.GPRS_LOG_RETENTION || process.env.LOG_RETENTION || "86400"),
     },
 
     // Database config

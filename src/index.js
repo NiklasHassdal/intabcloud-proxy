@@ -1,7 +1,7 @@
 import {v4 as uuidv4} from "uuid";
-import Knex from "knex";
 import http from "http";
 import config from "./config.js";
+import {flushRequestLogs, removeOldLogs, requestLogQueue} from "./logging.js";
 
 /**
  * @typedef {keyof typeof config.servers} ServerType
@@ -14,140 +14,13 @@ import config from "./config.js";
  * @property {number} activeConnections
  */
 
-/**
- * @typedef RequestLog
- * @property {string} requestLogId
- * @property {string} serverType
- * @property {Date} datetime
- * @property {string} method
- * @property {string} url
- * @property {number} statusCode
- * @property {number} duration
- * @property {Record<string, any>} requestHeaders
- * @property {Buffer | null} requestBody
- * @property {Record<string, any>} responseHeaders
- * @property {Buffer | null} responseBody
- */
+const logFlushTimer = setInterval(flushRequestLogs, 10000);
+const logRemoveTimer = setInterval(removeOldLogs, 60000);
 
-/**
- * @typedef KeyValue
- * @property {string} requestLogId
- * @property {string} type
- * @property {string} key
- * @property {any} value
- */
-
-/** @type {RequestLog[]} */
-const requestLogQueue = [];
-
-const knex = Knex(config.knex);
-
-knex.migrate.latest()
-    .then(() => flushRequestLogs(10000))
-    .then(() => removeOldLogs(60000));
-
-/**
- * @param {number} [repeatInterval]
- * @returns {Promise<void>}
- */
-async function flushRequestLogs(repeatInterval) {
-    try {
-        const requestLogs = requestLogQueue.splice(0, requestLogQueue.length);
-        const keyValues = [];
-
-        for (const {requestLogId, requestHeaders, requestBody} of requestLogs.map(hideSensitiveInfo)) {
-            if (!requestBody) {
-                continue;
-            }
-            const contentType = (requestHeaders["content-type"] || "").toLowerCase();
-            if (contentType.startsWith("application/json")) {
-                try {
-                    const text = requestBody.toString("utf-8");
-                    const json = hideSensitiveInfo(JSON.parse(text));
-                    keyValues.push(...getKeyValues(requestLogId, json));
-                } catch {
-                    // Do nothing
-                }
-            }
-        }
-
-        for (let i = 0; i < requestLogs.length; i += 10) {
-            await knex("requestLogs").insert(requestLogs.slice(i, i + 10));
-        }
-
-        for (let i = 0; i < keyValues.length; i += 100) {
-            await knex("keyValues").insert(keyValues.slice(i, i + 100));
-        }
-
-        if (repeatInterval) {
-            setTimeout(flushRequestLogs, repeatInterval, repeatInterval);
-        }
-    } catch (err) {
-        console.error(err);
-    }
-}
-
-/**
- * @param {number} [repeatInterval]
- * @returns {Promise<void>}
- */
-async function removeOldLogs(repeatInterval) {
-    try {
-        /** @type {Map<number, ServerType>} */
-        const retentionGroups = new Map();
-        for (const [serverType, retention] of Object.entries(config.logRetention)) {
-            if (retention > 0) {
-                if (retentionGroups[retention]) {
-                    retentionGroups[retention].push(serverType);
-                } else {
-                    retentionGroups[retention] = [serverType];
-                }
-            }
-        }
-
-        if (retentionGroups.size > 0) {
-            const now = Date.now();
-            const query = knex("requestLogs");
-            for (const [retention, serverTypes] of retentionGroups) {
-                query.orWhere((builder) => {
-                    builder.andWhere("serverType", "in", serverTypes);
-                    builder.andWhere("datetime", ">", new Date(now + (retention * 3600000)));
-                });
-            }
-        }
-
-        if (repeatInterval) {
-            setTimeout(removeOldLogs, repeatInterval, repeatInterval);
-        }
-    } catch (err) {
-        console.error(err);
-    }
-}
-
-/**
- * @param {string} requestLogId
- * @param {any} value
- * @param {string} [key]
- * @returns {KeyValue[]}
- */
-function getKeyValues(requestLogId, value, key) {
-    if (value && typeof value === "object" && !(value instanceof Date)) {
-        const result = [];
-        for (const subKey in value) {
-            const mergedKey = key
-                ? `${key}[${encodeURIComponent(subKey)}]`
-                : encodeURIComponent(subKey);
-            result.push(...getKeyValues(requestLogId, value[subKey], mergedKey));
-        }
-        return result;
-    } else if (!key || value === undefined) {
-        return [];
-    } else if (value instanceof Date) {
-        return [{requestLogId, type: "datetime", key, value: value.toISOString()}];
-    } else {
-        return [{requestLogId, type: typeof value, key, value: value.toString()}];
-    }
-}
+process.once("SIGINT", () => {
+    clearInterval(logFlushTimer);
+    clearInterval(logRemoveTimer);
+});
 
 /**
  * @param {string} servers
@@ -174,15 +47,6 @@ const servers = {
     gprs:     createServerInfo(config.servers.gprs),
 };
 
-const sensitiveProperties = [
-    /api[-_]?key/gi,
-    /password/gi,
-    /cookie/gi,
-    /authorization/gi,
-    /refreshtoken/gi,
-    /accesstoken/gi,
-];
-
 /**
  * @param {http.IncomingMessage} req
  * @returns {ServerType}
@@ -202,27 +66,6 @@ function getServerType(req) {
     } else {
         return "ui";
     }
-}
-
-/**
- * @param {any} data
- * @returns {any}
- */
-function hideSensitiveInfo(data) {
-    if (data && typeof data === "object") {
-        if (Array.isArray(data)) {
-            data.forEach(hideSensitiveInfo);
-        } else {
-            for (const key of Object.keys(data)) {
-                if (sensitiveProperties.some((regex) => regex.test(key))) {
-                    data[key] = "<hidden>";
-                } else {
-                    hideSensitiveInfo(data[key]);
-                }
-            }
-        }
-    }
-    return data;
 }
 
 /**
