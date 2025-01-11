@@ -89,7 +89,10 @@ async function handleRequest(clientReq, clientRes) {
         port:    serverInfo.port,
         path:    clientReq.url,
         method:  clientReq.method,
-        headers: clientReq.headers,
+        headers: {
+            ...clientReq.headers,
+            "x-forwarded-for": clientReq.socket.remoteAddress,
+        },
     };
 
     const targetReq = http.request(targetReqConfig, (targetRes) => {
