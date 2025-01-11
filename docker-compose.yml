@@ -24,7 +24,7 @@ services:
       - 80:80
     depends_on:
       - intabcloud_logs_db
-    restart: always
+    restart: unless-stopped
 
   intabcloud_logs_db:
     container_name: intabcloud_logs_db
@@ -39,7 +39,7 @@ services:
       - 5433:5432
     volumes:
       - intabcloud_logs_data:/var/lib/postgresql/data/
-    restart: always
+    restart: unless-stopped
 
 volumes:
   intabcloud_logs_data:
